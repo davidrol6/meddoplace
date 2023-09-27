@@ -2,7 +2,24 @@ from model import RobertaForSpanCategorization
 from transformers import AutoTokenizer
 import os
 import pandas as pd
+from datasets import Dataset
 
+def merge_groups(tagged_groups):
+    merged_tagged_groups = []
+    
+    i = 0
+    while i < len(tagged_groups):
+        current_group = tagged_groups[i].copy()
+        while i + 1 < len(tagged_groups) and tagged_groups[i]['end'] == tagged_groups[i + 1]['start']:
+            if "NOM" in tagged_groups[i + 1]["tag"]:
+                current_group["tag"] = tagged_groups[i + 1]["tag"]
+            current_group['end'] = tagged_groups[i + 1]['end']
+            current_group['text'] += tagged_groups[i + 1]['text']
+            i += 1
+        merged_tagged_groups.append(current_group)
+        i += 1
+    return merged_tagged_groups
+    
 def get_tags():
     list_tags = []
     ds = Dataset.from_json("./data/training2.jsonlines")
@@ -38,6 +55,8 @@ def get_offsets_and_predicted_tags(example: str, model, tokenizer, threshold=0.9
     # Tokenize the sentence to retrieve the tokens and offset mappings
     raw_encoded_example = tokenizer(example, return_offsets_mapping=True)
     encoded_example = tokenizer(example, return_tensors="pt")
+    enc = tokenizer.tokenize(example)
+    enc.insert(0, "<s>")
     
     # Call the model. The output LxK-tensor where L is the number of tokens, K is the number of classes
     out = model(**encoded_example)["logits"][0]
@@ -159,9 +178,9 @@ for filename in os.listdir(PATH_TXT):
                     print("Sentence exceeds length")
                     
                     
- with open("august_solution2.tsv", "w") as f:
-        f.write("filename\tann_id\tlabel\tstart_span\tend_span\ttext\n")
-        for ann in total_results:
-            count = 0
-            f.write(ann[0] +"\tT" + str(ann[1]) + "\t" + str(ann[2]) + "\t" + str(ann[3]) + "\t" + str(ann[4]) + "\t" + ann[5] + "\n")
-            count += 1
+with open("august_solution2.tsv", "w") as f:
+    f.write("filename\tann_id\tlabel\tstart_span\tend_span\ttext\n")
+    for ann in ann_results:
+        count = 0
+        f.write(ann[0] +"\tT" + str(ann[1]) + "\t" + str(ann[2]) + "\t" + str(ann[3]) + "\t" + str(ann[4]) + "\t" + ann[5] + "\n")
+        count += 1
